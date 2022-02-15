@@ -290,6 +290,10 @@ fragment IssueHistory on IssueHistory {
   # The last time at which the entity was updated. This is the same as the creation time if the
   #     entity hasn't been update after creation.
   updatedAt
+  # The linked attachment.
+  attachment {
+    id
+  }
   # The new cycle of the issue.
   toCycle {
     id
@@ -764,6 +768,8 @@ fragment OrganizationInvite on OrganizationInvite {
   # The last time at which the entity was updated. This is the same as the creation time if the
   #     entity hasn't been update after creation.
   updatedAt
+  # The permission that the invitee will receive upon accepting invite.
+  permission
   # The time at which the entity was archived. Null if the entity has not been archived.
   archivedAt
   # The time at which the entity was created.
@@ -1083,6 +1089,8 @@ fragment ArchiveResponse on ArchiveResponse {
   totalCount
   # The version of the remote database. Incremented by 1 for each migration run on the database.
   databaseVersion
+  # Whether the dependencies for the model objects are included in the archive.
+  includesDependencies
 }
 
 # Contains the requested dependencies.
@@ -2129,28 +2137,6 @@ fragment IssueConnection on IssueConnection {
   }
 }
 
-fragment IssueDescriptionHistory on IssueDescriptionHistory {
-  # The ID of the author of the change.
-  actorId
-  # The UUID of the change.
-  id
-  # The date when the description was updated.
-  updatedAt
-  # The description data of the issue as a JSON serialized string.
-  descriptionData
-  # The type of the revision, whether it was the creation or update of the issue.
-  type
-}
-
-fragment IssueDescriptionHistoryPayload on IssueDescriptionHistoryPayload {
-  # The issue that was created or updated.
-  history {
-    ...IssueDescriptionHistory
-  }
-  # Whether the operation was successful.
-  success
-}
-
 fragment IssueHistoryConnection on IssueHistoryConnection {
   nodes {
     ...IssueHistory
@@ -2394,6 +2380,8 @@ fragment OrganizationInviteDetailsPayload on OrganizationInviteDetailsPayload {
   accepted
   # Whether the invite has expired.
   expired
+  # Whether the invite should grant admin permissions
+  permission
 }
 
 fragment OrganizationInvitePayload on OrganizationInvitePayload {
@@ -6197,6 +6185,15 @@ mutation issueLabelCreate(
 ) {
   issueLabelCreate(input: $input, replaceTeamLabels: $replaceTeamLabels) {
     ...IssueLabelPayload
+  }
+}
+# Deletes an issue label.
+mutation issueLabelDelete(
+  # The identifier of the label to delete.
+  $id: String!
+) {
+  issueLabelDelete(id: $id) {
+    ...ArchivePayload
   }
 }
 # Updates an label.

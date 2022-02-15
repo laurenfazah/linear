@@ -105,6 +105,8 @@ export type ArchiveResponse = {
   archive: Scalars["String"];
   /** The version of the remote database. Incremented by 1 for each migration run on the database. */
   databaseVersion: Scalars["Float"];
+  /** Whether the dependencies for the model objects are included in the archive. */
+  includesDependencies: Scalars["Boolean"];
   /** The total number of entities in the archive. */
   totalCount: Scalars["Float"];
 };
@@ -1841,28 +1843,6 @@ export type IssueCreateInput = {
   title: Scalars["String"];
 };
 
-export type IssueDescriptionHistory = {
-  __typename?: "IssueDescriptionHistory";
-  /** The ID of the author of the change. */
-  actorId?: Maybe<Scalars["String"]>;
-  /** The description data of the issue as a JSON serialized string. */
-  descriptionData: Scalars["String"];
-  /** The UUID of the change. */
-  id: Scalars["String"];
-  /** The type of the revision, whether it was the creation or update of the issue. */
-  type: Scalars["String"];
-  /** The date when the description was updated. */
-  updatedAt: Scalars["DateTime"];
-};
-
-export type IssueDescriptionHistoryPayload = {
-  __typename?: "IssueDescriptionHistoryPayload";
-  /** The issue that was created or updated. */
-  history?: Maybe<Array<IssueDescriptionHistory>>;
-  /** Whether the operation was successful. */
-  success: Scalars["Boolean"];
-};
-
 export type IssueEdge = {
   __typename?: "IssueEdge";
   /** Used in `before` and `after` args */
@@ -1941,6 +1921,8 @@ export type IssueHistory = Node & {
   archived?: Maybe<Scalars["Boolean"]>;
   /** The time at which the entity was archived. Null if the entity has not been archived. */
   archivedAt?: Maybe<Scalars["DateTime"]>;
+  /** The linked attachment. */
+  attachment?: Maybe<Attachment>;
   autoArchived?: Maybe<Scalars["Boolean"]>;
   autoClosed?: Maybe<Scalars["Boolean"]>;
   /** The time at which the entity was created. */
@@ -2644,7 +2626,10 @@ export type Mutation = {
    * @deprecated This mutation is deprecated, please use `integrationSettingsUpdate` instead
    */
   integrationIntercomSettingsUpdate: IntegrationPayload;
-  /** Enables Loom integration for the organization. */
+  /**
+   * Enables Loom integration for the organization.
+   * @deprecated Not available.
+   */
   integrationLoom: IntegrationPayload;
   /** Archives an integration resource. */
   integrationResourceArchive: ArchivePayload;
@@ -2686,10 +2671,15 @@ export type Mutation = {
   issueImportProcess: IssueImportPayload;
   /** Updates the mapping for the issue import. */
   issueImportUpdate: IssueImportPayload;
-  /** Archives an issue label. */
+  /**
+   * Archives an issue label.
+   * @deprecated Labels are deleted instead of archived.
+   */
   issueLabelArchive: ArchivePayload;
   /** Creates a new label. */
   issueLabelCreate: IssueLabelPayload;
+  /** Deletes an issue label. */
+  issueLabelDelete: ArchivePayload;
   /** Updates an label. */
   issueLabelUpdate: IssueLabelPayload;
   /** Creates a new issue relation. */
@@ -3212,6 +3202,10 @@ export type MutationIssueLabelArchiveArgs = {
 export type MutationIssueLabelCreateArgs = {
   input: IssueLabelCreateInput;
   replaceTeamLabels?: Maybe<Scalars["Boolean"]>;
+};
+
+export type MutationIssueLabelDeleteArgs = {
+  id: Scalars["String"];
 };
 
 export type MutationIssueLabelUpdateArgs = {
@@ -4289,6 +4283,8 @@ export type OrganizationInvite = Node & {
   inviter: User;
   /** The organization that the invite is associated with. */
   organization: Organization;
+  /** The permission that the invitee will receive upon accepting invite. */
+  permission?: Maybe<Scalars["String"]>;
   /**
    * The last time at which the entity was updated. This is the same as the creation time if the
    *     entity hasn't been update after creation.
@@ -4310,6 +4306,8 @@ export type OrganizationInviteCreateInput = {
   id?: Maybe<Scalars["String"]>;
   /** The message to send to the invitee. */
   message?: Maybe<Scalars["String"]>;
+  /** Whether the invite should grant admin permissions. */
+  permission?: Maybe<Scalars["String"]>;
   /** The teams that the user has been invited to. */
   teamIds?: Maybe<Array<Scalars["String"]>>;
 };
@@ -4332,6 +4330,8 @@ export type OrganizationInviteDetailsPayload = {
   organizationLogoUrl?: Maybe<Scalars["String"]>;
   /** Name of the workspace the invite is for. */
   organizationName: Scalars["String"];
+  /** Whether the invite should grant admin permissions */
+  permission?: Maybe<Scalars["String"]>;
 };
 
 export type OrganizationInviteEdge = {
@@ -4886,8 +4886,6 @@ export type Query = {
   integrations: IntegrationConnection;
   /** One specific issue. */
   issue: Issue;
-  /** [Internal] The history of issue descriptions. */
-  issueDescriptionHistory: IssueDescriptionHistoryPayload;
   /** Fetches the GitHub token, completing the OAuth flow. */
   issueImportFinishGithubOAuth: GithubOAuthTokenPayload;
   /** One specific label. */
@@ -5105,6 +5103,7 @@ export type QueryCyclesArgs = {
 
 export type QueryDependentModelSyncArgs = {
   identifier: Scalars["String"];
+  includeDependent?: Maybe<Scalars["Boolean"]>;
   modelClass: Scalars["String"];
 };
 
@@ -5179,10 +5178,6 @@ export type QueryIntegrationsArgs = {
 };
 
 export type QueryIssueArgs = {
-  id: Scalars["String"];
-};
-
-export type QueryIssueDescriptionHistoryArgs = {
   id: Scalars["String"];
 };
 
@@ -7134,6 +7129,7 @@ export type IssueHistoryFragment = { __typename?: "IssueHistory" } & Pick<
     >;
     issueImport?: Maybe<{ __typename?: "IssueImport" } & IssueImportFragment>;
     issue: { __typename?: "Issue" } & Pick<Issue, "id">;
+    attachment?: Maybe<{ __typename?: "Attachment" } & Pick<Attachment, "id">>;
     toCycle?: Maybe<{ __typename?: "Cycle" } & Pick<Cycle, "id">>;
     toParent?: Maybe<{ __typename?: "Issue" } & Pick<Issue, "id">>;
     toProject?: Maybe<{ __typename?: "Project" } & Pick<Project, "id">>;
@@ -7273,7 +7269,7 @@ export type IntegrationFragment = { __typename?: "Integration" } & Pick<
 
 export type OrganizationInviteFragment = { __typename?: "OrganizationInvite" } & Pick<
   OrganizationInvite,
-  "external" | "email" | "updatedAt" | "archivedAt" | "createdAt" | "acceptedAt" | "expiresAt" | "id"
+  "external" | "email" | "updatedAt" | "permission" | "archivedAt" | "createdAt" | "acceptedAt" | "expiresAt" | "id"
 > & {
     inviter: { __typename?: "User" } & Pick<User, "id">;
     invitee?: Maybe<{ __typename?: "User" } & Pick<User, "id">>;
@@ -7407,7 +7403,7 @@ export type SyncResponseFragment = { __typename?: "SyncResponse" } & Pick<
 
 export type ArchiveResponseFragment = { __typename?: "ArchiveResponse" } & Pick<
   ArchiveResponse,
-  "archive" | "totalCount" | "databaseVersion"
+  "archive" | "totalCount" | "databaseVersion" | "includesDependencies"
 >;
 
 export type DependencyResponseFragment = { __typename?: "DependencyResponse" } & Pick<
@@ -7875,16 +7871,6 @@ export type IssueConnectionFragment = { __typename?: "IssueConnection" } & {
   pageInfo: { __typename?: "PageInfo" } & PageInfoFragment;
 };
 
-export type IssueDescriptionHistoryFragment = { __typename?: "IssueDescriptionHistory" } & Pick<
-  IssueDescriptionHistory,
-  "actorId" | "id" | "updatedAt" | "descriptionData" | "type"
->;
-
-export type IssueDescriptionHistoryPayloadFragment = { __typename?: "IssueDescriptionHistoryPayload" } & Pick<
-  IssueDescriptionHistoryPayload,
-  "success"
-> & { history?: Maybe<Array<{ __typename?: "IssueDescriptionHistory" } & IssueDescriptionHistoryFragment>> };
-
 export type IssueHistoryConnectionFragment = { __typename?: "IssueHistoryConnection" } & {
   nodes: Array<{ __typename?: "IssueHistory" } & IssueHistoryFragment>;
   pageInfo: { __typename?: "PageInfo" } & PageInfoFragment;
@@ -8024,6 +8010,7 @@ export type OrganizationInviteDetailsPayloadFragment = { __typename?: "Organizat
   | "createdAt"
   | "accepted"
   | "expired"
+  | "permission"
 >;
 
 export type OrganizationInvitePayloadFragment = { __typename?: "OrganizationInvitePayload" } & Pick<
@@ -10346,6 +10333,14 @@ export type IssueLabelCreateMutation = { __typename?: "Mutation" } & {
   issueLabelCreate: { __typename?: "IssueLabelPayload" } & IssueLabelPayloadFragment;
 };
 
+export type IssueLabelDeleteMutationVariables = Exact<{
+  id: Scalars["String"];
+}>;
+
+export type IssueLabelDeleteMutation = { __typename?: "Mutation" } & {
+  issueLabelDelete: { __typename?: "ArchivePayload" } & ArchivePayloadFragment;
+};
+
 export type IssueLabelUpdateMutationVariables = Exact<{
   id: Scalars["String"];
   input: IssueLabelUpdateInput;
@@ -11145,6 +11140,7 @@ export const ArchiveResponseFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "archive" } },
           { kind: "Field", name: { kind: "Name", value: "totalCount" } },
           { kind: "Field", name: { kind: "Name", value: "databaseVersion" } },
+          { kind: "Field", name: { kind: "Name", value: "includesDependencies" } },
         ],
       },
     },
@@ -13531,51 +13527,6 @@ export const IssueConnectionFragmentDoc = {
     ...PageInfoFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<IssueConnectionFragment, unknown>;
-export const IssueDescriptionHistoryFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "IssueDescriptionHistory" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "IssueDescriptionHistory" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "actorId" } },
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "descriptionData" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<IssueDescriptionHistoryFragment, unknown>;
-export const IssueDescriptionHistoryPayloadFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "IssueDescriptionHistoryPayload" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "IssueDescriptionHistoryPayload" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "history" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueDescriptionHistory" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "success" } },
-        ],
-      },
-    },
-    ...IssueDescriptionHistoryFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<IssueDescriptionHistoryPayloadFragment, unknown>;
 export const IssueRelationHistoryPayloadFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -13655,6 +13606,14 @@ export const IssueHistoryFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "attachment" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "toCycle" },
@@ -14625,6 +14584,7 @@ export const OrganizationInviteFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "external" } },
           { kind: "Field", name: { kind: "Name", value: "email" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "permission" } },
           { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "acceptedAt" } },
@@ -14702,6 +14662,7 @@ export const OrganizationInviteDetailsPayloadFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "accepted" } },
           { kind: "Field", name: { kind: "Name", value: "expired" } },
+          { kind: "Field", name: { kind: "Name", value: "permission" } },
         ],
       },
     },
@@ -29436,6 +29397,44 @@ export const IssueLabelCreateDocument = {
     ...IssueLabelPayloadFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<IssueLabelCreateMutation, IssueLabelCreateMutationVariables>;
+export const IssueLabelDeleteDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "issueLabelDelete" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issueLabelDelete" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ArchivePayload" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...ArchivePayloadFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<IssueLabelDeleteMutation, IssueLabelDeleteMutationVariables>;
 export const IssueLabelUpdateDocument = {
   kind: "Document",
   definitions: [

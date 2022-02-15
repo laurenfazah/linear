@@ -129,6 +129,10 @@ type ArchiveResponse {
   """
   databaseVersion: Float!
   """
+  Whether the dependencies for the model objects are included in the archive.
+  """
+  includesDependencies: Boolean!
+  """
   The total number of entities in the archive.
   """
   totalCount: Float!
@@ -3063,40 +3067,6 @@ input IssueCreateInput {
   title: String!
 }
 
-type IssueDescriptionHistory {
-  """
-  The ID of the author of the change.
-  """
-  actorId: String
-  """
-  The description data of the issue as a JSON serialized string.
-  """
-  descriptionData: String!
-  """
-  The UUID of the change.
-  """
-  id: String!
-  """
-  The type of the revision, whether it was the creation or update of the issue.
-  """
-  type: String!
-  """
-  The date when the description was updated.
-  """
-  updatedAt: DateTime!
-}
-
-type IssueDescriptionHistoryPayload {
-  """
-  The issue that was created or updated.
-  """
-  history: [IssueDescriptionHistory!]
-  """
-  Whether the operation was successful.
-  """
-  success: Boolean!
-}
-
 type IssueEdge {
   """
   Used in `before` and `after` args
@@ -3243,6 +3213,10 @@ type IssueHistory implements Node {
   The time at which the entity was archived. Null if the entity has not been archived.
   """
   archivedAt: DateTime
+  """
+  The linked attachment.
+  """
+  attachment: Attachment
   autoArchived: Boolean
   autoClosed: Boolean
   """
@@ -4780,7 +4754,7 @@ type Mutation {
   """
   Enables Loom integration for the organization.
   """
-  integrationLoom: IntegrationPayload!
+  integrationLoom: IntegrationPayload! @deprecated(reason: "Not available.")
   """
   Archives an integration resource.
   """
@@ -5141,7 +5115,7 @@ type Mutation {
     The identifier of the label to archive.
     """
     id: String!
-  ): ArchivePayload!
+  ): ArchivePayload! @deprecated(reason: "Labels are deleted instead of archived.")
   """
   Creates a new label.
   """
@@ -5155,6 +5129,15 @@ type Mutation {
     """
     replaceTeamLabels: Boolean
   ): IssueLabelPayload!
+  """
+  Deletes an issue label.
+  """
+  issueLabelDelete(
+    """
+    The identifier of the label to delete.
+    """
+    id: String!
+  ): ArchivePayload!
   """
   Updates an label.
   """
@@ -7309,6 +7292,10 @@ type OrganizationInvite implements Node {
   """
   organization: Organization!
   """
+  The permission that the invitee will receive upon accepting invite.
+  """
+  permission: String
+  """
   The last time at which the entity was updated. This is the same as the creation time if the
       entity hasn't been update after creation.
   """
@@ -7334,6 +7321,10 @@ input OrganizationInviteCreateInput {
   The message to send to the invitee.
   """
   message: String
+  """
+  Whether the invite should grant admin permissions.
+  """
+  permission: String
   """
   The teams that the user has been invited to.
   """
@@ -7373,6 +7364,10 @@ type OrganizationInviteDetailsPayload {
   Name of the workspace the invite is for.
   """
   organizationName: String!
+  """
+  Whether the invite should grant admin permissions
+  """
+  permission: String
 }
 
 type OrganizationInviteEdge {
@@ -8590,6 +8585,10 @@ type Query {
     """
     identifier: String!
     """
+    Whether to also include the dependent model referenced by the given identifier in the response.
+    """
+    includeDependent: Boolean
+    """
     The class name of the model to load.
     """
     modelClass: String!
@@ -8781,10 +8780,6 @@ type Query {
   One specific issue.
   """
   issue(id: String!): Issue!
-  """
-  [Internal] The history of issue descriptions.
-  """
-  issueDescriptionHistory(id: String!): IssueDescriptionHistoryPayload!
   """
   Fetches the GitHub token, completing the OAuth flow.
   """
